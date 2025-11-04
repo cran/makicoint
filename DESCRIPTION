@@ -1,0 +1,32 @@
+Package: makicoint
+Type: Package
+Title: Maki Cointegration Test with Structural Breaks
+Version: 1.0.0
+Date: 2025-10-26
+Authors@R: person("Merwan", "Roudane", 
+                  email = "merwanroudane920@gmail.com",
+                  role = c("aut", "cre"),
+                  comment = "Independent Researcher")
+Description: Implements the Maki (2012) <doi:10.1016/j.econmod.2012.05.006> 
+    cointegration test that allows for an unknown number of structural breaks. 
+    The test detects cointegration relationships in the presence of up to five 
+    structural breaks in the intercept and/or slope coefficients. Four different 
+    model specifications are supported: level shifts, level shifts with trend, 
+    regime shifts, and trend with regime shifts. The method is described in 
+    Maki (2012) "Tests for cointegration allowing for an unknown number of 
+    breaks" <doi:10.1016/j.econmod.2012.05.006>.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 3.5.0)
+Imports:
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 7.3.3
+URL: https://github.com/merwanroudane/makicoint
+BugReports: https://github.com/merwanroudane/makicoint/issues
+NeedsCompilation: no
+Packaged: 2025-10-31 02:38:31 UTC; HP
+Author: Merwan Roudane [aut, cre] (Independent Researcher)
+Maintainer: Merwan Roudane <merwanroudane920@gmail.com>
+Repository: CRAN
+Date/Publication: 2025-11-04 10:50:02 UTC

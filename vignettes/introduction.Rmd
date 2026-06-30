@@ -1,6 +1,6 @@
 ---
 title: "Introduction to makicoint"
-author: "Dr. Merwan Roudane"
+author: "Merwan Roudane"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -10,194 +10,106 @@ vignette: >
 ---
 
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.width = 7,
-  fig.height = 5
-)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.width = 7, fig.height = 5)
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 ```
 
-## Introduction
+## Overview
 
-The `makicoint` package implements the Maki (2012) cointegration test, which extends traditional cointegration tests by allowing for an unknown number of structural breaks. This is particularly important in econometric analysis where structural changes can affect long-run relationships between variables.
-
-## Installation
-
-```{r installation, eval=FALSE}
-# From CRAN
-install.packages("makicoint")
-
-# Development version
-devtools::install_github("merwanroudane/makicoint")
-```
+`makicoint` implements the Maki (2012) residual-based test for cointegration
+that allows for an **unknown number of structural breaks**. It extends the
+Gregory-Hansen (one break) and Hatemi-J (two breaks) tests to any feasible
+number of breaks. The null hypothesis is *no cointegration*; the alternative is
+*cointegration with up to `m` breaks*.
 
 ```{r load}
 library(makicoint)
 ```
 
-## Basic Concept
+## How it works
 
-Traditional cointegration tests (e.g., Engle-Granger, Johansen) assume parameter stability. However, economic relationships often experience structural breaks due to:
+Breaks are placed one at a time by a sequential Bai-Perron procedure. At each
+candidate break the cointegrating regression is fitted and its residual is tested
+with an augmented Dickey-Fuller (ADF) regression. The **test statistic is the
+minimum ADF t-statistic** over all candidates and all steps; reject the null when
+it falls below the critical value.
 
-- Policy changes
-- Economic crises
-- Technological shifts
-- Regime changes
+Four deterministic models are available: level shift (`model = 0`), level shift
+with trend (`1`), regime shift (`2`), and regime shift with trend (`3`).
 
-The Maki test addresses this by:
+## Example: a single level break
 
-1. Searching for optimal break point locations
-2. Computing test statistics for each configuration
-3. Selecting the minimum (most negative) statistic
-4. Comparing against break-specific critical values
-
-## Example 1: Single Structural Break
-
-Let's generate two cointegrated series with one structural break:
-
-```{r example1}
+```{r ex1}
 set.seed(123)
 n <- 100
-e1 <- rnorm(n)
-e2 <- rnorm(n)
+x <- cumsum(rnorm(n))
+y <- 0.5 * x + cumsum(rnorm(n))
+y[51:100] <- y[51:100] + 2          # a level break at observation 50
 
-# Generate I(1) processes
-x <- cumsum(e1)
-y <- 0.5 * x + cumsum(e2)
-
-# Add structural break at observation 50
-y[51:100] <- y[51:100] + 2
-
-# Plot the data
-oldpar <- par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
-plot(y, type = 'l', col = 'blue', main = 'Dependent Variable (Y) with Break',
-     xlab = 'Time', ylab = 'Y')
-abline(v = 50, col = 'red', lty = 2)
-plot(x, type = 'l', col = 'darkgreen', main = 'Independent Variable (X)',
-     xlab = 'Time', ylab = 'X')
-par(oldpar)
+res <- coint_maki(cbind(y, x), m = 1, model = 0)
+res
 ```
 
-Now perform the Maki test:
+The break is detected near observation 50 and, if the series are cointegrated
+with that break, the statistic falls below the critical value.
 
-```{r test1}
-# Prepare data matrix (Y first, then X)
-data1 <- cbind(y, x)
+### The diagnostic plot
 
-# Run test with m=1 (one break), model=0 (level shift)
-result1 <- coint_maki(data1, m = 1, model = 0)
-print(result1)
+If `ggplot2` is installed, `plot()` draws a two-panel dashboard: the series with
+its break-adjusted long-run fit, and the cointegrating residual.
+
+```{r ex1plot, eval = has_ggplot, fig.alt = "Two-panel Maki test dashboard"}
+plot(res)
 ```
 
-**Interpretation:**
-- The test correctly detects cointegration
-- The break point is identified near observation 50
-- The test statistic is more negative than the 5% critical value
+## Two engines
 
-## Example 2: Multiple Breaks
+The break **dates** can be chosen two ways; both give the same test statistic.
+The default reproduces the original 'GAUSS'/'tspdlib' implementation. With
+`engine = "paper"`, each break minimises the cointegrating-regression sum of
+squared residuals, the rule in Maki (2012, Steps 2 and 4).
 
-Generate data with two structural breaks:
-
-```{r example2}
-set.seed(456)
-n <- 150
-e1 <- rnorm(n)
-e2 <- rnorm(n)
-
-x2 <- cumsum(e1)
-y2 <- 0.6 * x2 + cumsum(e2)
-
-# Add two breaks
-y2[51:100] <- y2[51:100] + 1.5
-y2[101:150] <- y2[101:150] + 3
-
-# Plot
-plot(y2, type = 'l', col = 'blue', main = 'Series with Two Breaks',
-     xlab = 'Time', ylab = 'Y')
-abline(v = c(50, 100), col = 'red', lty = 2)
-
-# Test
-data2 <- cbind(y2, x2)
-result2 <- coint_maki(data2, m = 2, model = 0)
-print(result2)
+```{r engines}
+g <- coint_maki(cbind(y, x), m = 2, model = 2)                 # default (GAUSS)
+p <- coint_maki(cbind(y, x), m = 2, model = 2, engine = "paper")
+c(gauss = g$statistic, paper = p$statistic)
+rbind(gauss = g$breakpoints, paper = p$breakpoints)
 ```
 
-## Example 3: Regime Shift (Model 2)
+## Critical values
 
-Regime shifts involve changes in both the intercept and slope:
+`cv_coint_maki()` returns the Maki (2012) Table 1 values, which depend on the
+number of regressors (1-4), the number of breaks (1-5) and the model.
 
-```{r example3}
-set.seed(789)
-n <- 120
-e1 <- rnorm(n)
-e2 <- rnorm(n)
-
-x3 <- cumsum(e1)
-y3 <- 0.4 * x3 + cumsum(e2)
-
-# Regime shift: change slope after observation 60
-y3[61:120] <- y3[61:120] + 0.3 * x3[61:120]
-
-# Plot
-plot(y3, type = 'l', col = 'blue', main = 'Regime Shift',
-     xlab = 'Time', ylab = 'Y')
-abline(v = 60, col = 'red', lty = 2)
-
-# Test with model=2
-data3 <- cbind(y3, x3)
-result3 <- coint_maki(data3, m = 1, model = 2)
-print(result3)
+```{r cv}
+cv_coint_maki(k = 2, m = 3, model = 2)
 ```
 
-## Model Selection Guide
+## More than five breaks
 
-Choose the model based on your application:
+Maki's Table 1 stops at five breaks (his footnote 5 notes more are possible).
+`makicoint` estimates the statistic and breaks for any feasible number, and for
+more than five it can simulate the critical values by Maki's own Monte-Carlo
+design. The simulation reruns the whole search every replication, so it is
+heavy; use a few thousand replications for reported work.
 
-| Model | Description | Use When |
-|-------|-------------|----------|
-| 0 | Level shift | You expect only intercept changes |
-| 1 | Level shift + trend | Data has deterministic trend |
-| 2 | Regime shift | Both intercept and slopes may change |
-| 3 | Trend + regime | Most general specification |
+```{r simcv, eval = FALSE}
+# (not run here; can take minutes)
+coint_maki(cbind(y, x), m = 7, simcv = 2000, simt = 500)
+```
 
-## Parameter Settings
-
-### Trimming Parameter (`trimm`)
-
-- Default: 0.15 (15% of sample)
-- Determines minimum distance between breaks
-- Smaller values allow breaks closer together
-- Larger values impose more separation
-
-### Lag Selection (`lagoption`)
-
-- `lagoption = 0`: No lags (assumes white noise residuals)
-- `lagoption = 1`: Automatic selection using t-sig criterion (recommended)
-
-## Practical Tips
-
-1. **Start Simple**: Begin with m=1 and model=0, then increase complexity
-2. **Visual Inspection**: Plot your data to identify potential break points
-3. **Sample Size**: Larger samples provide more reliable break detection
-4. **Multiple Variables**: Extend to more than one regressor by adding columns
-
-## Accessing Results
+## Accessing results
 
 ```{r results}
-# Access specific components
-result1$statistic        # Test statistic
-result1$breakpoints      # Break locations
-result1$critical_values  # Critical values [1%, 5%, 10%]
-result1$reject_5         # Reject at 5% level?
+res$statistic
+res$breakpoints
+res$critical_values
+res$cv_source
 ```
 
-## References
+## Reference
 
-Maki, D. (2012). Tests for cointegration allowing for an unknown number of breaks. *Economic Modelling*, 29(5), 2011-2015.
-
-## Session Info
-
-```{r session}
-sessionInfo()
-```
+Maki, D. (2012). Tests for cointegration allowing for an unknown number of
+breaks. *Economic Modelling*, 29, 2011-2015.
+<https://doi.org/10.1016/j.econmod.2012.04.022>

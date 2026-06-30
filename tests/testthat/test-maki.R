@@ -1,140 +1,91 @@
-test_that("coint_maki works with model 0 and m=1", {
+test_that("coint_maki returns a valid maki_test object", {
   set.seed(123)
-  n <- 100
+  n <- 60
   x <- cumsum(rnorm(n))
   y <- 0.5 * x + cumsum(rnorm(n))
-  y[51:100] <- y[51:100] + 2
-  
-  data <- cbind(y, x)
-  result <- coint_maki(data, m = 1, model = 0)
-  
-  expect_s3_class(result, "maki_test")
-  expect_true(is.numeric(result$statistic))
-  expect_true(!is.null(result$breakpoints))
-  expect_true(result$m == 1)
-  expect_true(result$model == 0)
+  y[31:60] <- y[31:60] + 2
+  res <- coint_maki(cbind(y, x), m = 1, model = 0)
+
+  expect_s3_class(res, "maki_test")
+  expect_true(is.numeric(res$statistic) && is.finite(res$statistic))
+  expect_length(res$breakpoints, 1L)
+  expect_identical(res$m, 1)
+  expect_identical(res$model, 0)
+  expect_identical(res$cv_source, "table")
 })
 
-test_that("coint_maki works with model 1 and m=2", {
+test_that("number of breakpoints equals m", {
   set.seed(456)
-  n <- 150
+  n <- 80
   x <- cumsum(rnorm(n))
   y <- 0.6 * x + cumsum(rnorm(n))
-  y[51:100] <- y[51:100] + 1.5
-  y[101:150] <- y[101:150] + 3
-  
-  data <- cbind(y, x)
-  result <- coint_maki(data, m = 2, model = 1)
-  
-  expect_s3_class(result, "maki_test")
-  expect_true(is.numeric(result$statistic))
-  expect_true(!is.null(result$breakpoints))
-  expect_true(result$m == 2)
-  expect_true(result$model == 1)
+  res2 <- coint_maki(cbind(y, x), m = 2, model = 2)
+  expect_length(res2$breakpoints, 2L)
+  expect_true(all(diff(res2$breakpoints) > 0))
 })
 
-test_that("coint_maki validates input correctly", {
-  expect_error(coint_maki(matrix(1:10, ncol=1), m = 1, model = 0))
-  expect_error(coint_maki(cbind(1:10, 1:10), m = -1, model = 0))
-  expect_error(coint_maki(cbind(1:10, 1:10), m = 1, model = 5))
-  expect_error(coint_maki(cbind(1:10, 1:10), m = 6, model = 0))
+test_that("all four models run", {
+  set.seed(321)
+  n <- 60
+  x <- cumsum(rnorm(n))
+  y <- 0.5 * x + cumsum(rnorm(n))
+  y[31:60] <- y[31:60] + 2
+  for (mod in 0:3) {
+    res <- coint_maki(cbind(y, x), m = 1, model = mod)
+    expect_s3_class(res, "maki_test")
+    expect_identical(res$model, mod)
+  }
 })
 
-test_that("cv_coint_maki returns correct critical values", {
-  cv <- cv_coint_maki(100, m = 1, model = 0)
-  
-  expect_true(is.numeric(cv))
-  expect_true(length(cv) == 3)
-  expect_true(all(cv < 0))
-  # Critical values should be ordered: 1% < 5% < 10% (more negative to less negative)
-  expect_true(cv[1] < cv[2])  # 1% more negative than 5%
-  expect_true(cv[2] < cv[3])  # 5% more negative than 10%
+test_that("paper engine runs and shares the statistic at m=1", {
+  set.seed(11)
+  n <- 60
+  x <- cumsum(rnorm(n))
+  y <- 0.5 * x + cumsum(rnorm(n))
+  g <- coint_maki(cbind(y, x), m = 1, model = 2, engine = "gauss")
+  p <- coint_maki(cbind(y, x), m = 1, model = 2, engine = "paper")
+  expect_equal(g$statistic, p$statistic, tolerance = 1e-8)
+})
+
+test_that("multiple regressors are supported", {
+  set.seed(555)
+  n <- 70
+  x1 <- cumsum(rnorm(n)); x2 <- cumsum(rnorm(n))
+  y <- 0.5 * x1 + 0.3 * x2 + cumsum(rnorm(n))
+  res <- coint_maki(cbind(y, x1, x2), m = 1, model = 0)
+  expect_s3_class(res, "maki_test")
+  expect_identical(res$k, 2L)
+})
+
+test_that("input validation", {
+  expect_error(coint_maki(matrix(1:10, ncol = 1)))          # one column
+  expect_error(coint_maki(cbind(1:10, 1:10), model = 5))    # bad model
+  expect_error(coint_maki(cbind(1:10, 1:10), m = 0))        # m < 1
+  expect_error(coint_maki(cbind(rnorm(40), rnorm(40)), m = 30)) # infeasible
+})
+
+test_that("cv_coint_maki matches Maki (2012) Table 1", {
+  expect_equal(cv_coint_maki(1, 1, 0), c(-5.709, -4.602, -4.354))
+  expect_equal(cv_coint_maki(2, 3, 2), c(-7.031, -6.516, -6.210))
+  expect_equal(cv_coint_maki(3, 3, 2), c(-7.767, -7.155, -6.868))
+  expect_equal(cv_coint_maki(4, 5, 3), c(-10.08, -9.482, -9.151))
+  expect_true(all(is.na(cv_coint_maki(5, 1, 0))))  # k out of range
+  expect_true(all(is.na(cv_coint_maki(1, 6, 0))))  # m out of range
+})
+
+test_that("critical values are ordered 1% < 5% < 10%", {
+  for (k in 1:4) for (m in 1:5) for (mod in 0:3) {
+    cv <- cv_coint_maki(k, m, mod)
+    expect_true(cv[1] < cv[2] && cv[2] < cv[3])
+  }
 })
 
 test_that("print method works", {
   set.seed(789)
-  n <- 100
+  n <- 60
   x <- cumsum(rnorm(n))
   y <- 0.5 * x + cumsum(rnorm(n))
-  
-  data <- cbind(y, x)
-  result <- coint_maki(data, m = 1, model = 0)
-  
-  expect_output(print(result), "Maki Cointegration Test")
-  expect_output(print(result), "Test Statistic")
-  expect_output(print(result), "Critical Values")
-})
-
-test_that("Different model specifications work", {
-  set.seed(321)
-  n <- 100
-  x <- cumsum(rnorm(n))
-  y <- 0.5 * x + cumsum(rnorm(n))
-  y[51:100] <- y[51:100] + 2
-  
-  data <- cbind(y, x)
-  
-  # Model 0: Level shift
-  result0 <- coint_maki(data, m = 1, model = 0)
-  expect_s3_class(result0, "maki_test")
-  expect_equal(result0$model, 0)
-  
-  # Model 1: Level shift with trend
-  result1 <- coint_maki(data, m = 1, model = 1)
-  expect_s3_class(result1, "maki_test")
-  expect_equal(result1$model, 1)
-  
-  # Model 2: Regime shift
-  result2 <- coint_maki(data, m = 1, model = 2)
-  expect_s3_class(result2, "maki_test")
-  expect_equal(result2$model, 2)
-  
-  # Model 3: Trend and regime shift
-  result3 <- coint_maki(data, m = 1, model = 3)
-  expect_s3_class(result3, "maki_test")
-  expect_equal(result3$model, 3)
-})
-
-test_that("Test works with multiple explanatory variables", {
-  set.seed(555)
-  n <- 100
-  x1 <- cumsum(rnorm(n))
-  x2 <- cumsum(rnorm(n))
-  y <- 0.5 * x1 + 0.3 * x2 + cumsum(rnorm(n))
-  y[51:100] <- y[51:100] + 2
-  
-  data <- cbind(y, x1, x2)
-  result <- coint_maki(data, m = 1, model = 0)
-  
-  expect_s3_class(result, "maki_test")
-  expect_true(is.numeric(result$statistic))
-})
-
-test_that("m=0 (no breaks) works correctly", {
-  set.seed(999)
-  n <- 100
-  x <- cumsum(rnorm(n))
-  y <- 0.5 * x + cumsum(rnorm(n))
-  
-  data <- cbind(y, x)
-  result <- coint_maki(data, m = 0, model = 0)
-  
-  expect_s3_class(result, "maki_test")
-  expect_true(is.numeric(result$statistic))
-  expect_true(is.null(result$breakpoints))  # No breaks with m=0
-  expect_equal(result$m, 0)
-})
-
-test_that("All critical value tables work", {
-  # Test all combinations of m and model that should work
-  for (m_val in 0:3) {
-    for (model_val in 0:3) {
-      cv <- cv_coint_maki(100, m = m_val, model = model_val)
-      expect_true(is.numeric(cv))
-      expect_equal(length(cv), 3)
-      expect_true(all(cv < 0))
-      expect_true(cv[1] < cv[2])  # 1% < 5%
-      expect_true(cv[2] < cv[3])  # 5% < 10%
-    }
-  }
+  res <- coint_maki(cbind(y, x), m = 1, model = 0)
+  expect_output(print(res), "Maki")
+  expect_output(print(res), "Test statistic")
 })

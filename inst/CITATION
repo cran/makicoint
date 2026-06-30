@@ -1,0 +1,31 @@
+bibentry(
+  bibtype  = "Manual",
+  title    = "{makicoint}: Maki Cointegration Test with Multiple Structural Breaks",
+  author   = person("Merwan", "Roudane"),
+  year     = "2026",
+  note     = "R package version 2.0.0",
+  url      = "https://CRAN.R-project.org/package=makicoint",
+  textVersion = paste(
+    "Roudane, M. (2026).",
+    "makicoint: Maki Cointegration Test with Multiple Structural Breaks.",
+    "R package version 2.0.0.",
+    "https://CRAN.R-project.org/package=makicoint"
+  )
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "Tests for cointegration allowing for an unknown number of breaks",
+  author  = person("Daiki", "Maki"),
+  journal = "Economic Modelling",
+  year    = "2012",
+  volume  = "29",
+  pages   = "2011--2015",
+  doi     = "10.1016/j.econmod.2012.04.022",
+  textVersion = paste(
+    "Maki, D. (2012).",
+    "Tests for cointegration allowing for an unknown number of breaks.",
+    "Economic Modelling, 29, 2011-2015.",
+    "doi:10.1016/j.econmod.2012.04.022"
+  )
+)

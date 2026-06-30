@@ -1,32 +1,37 @@
 Package: makicoint
 Type: Package
-Title: Maki Cointegration Test with Structural Breaks
-Version: 1.0.0
-Date: 2025-10-26
-Authors@R: person("Merwan", "Roudane", 
+Title: Maki Cointegration Test with Multiple Structural Breaks
+Version: 2.0.0
+Date: 2026-06-30
+Authors@R: person("Merwan", "Roudane",
                   email = "merwanroudane920@gmail.com",
-                  role = c("aut", "cre"),
+                  role = c("aut", "cre", "cph"),
                   comment = "Independent Researcher")
-Description: Implements the Maki (2012) <doi:10.1016/j.econmod.2012.05.006> 
-    cointegration test that allows for an unknown number of structural breaks. 
-    The test detects cointegration relationships in the presence of up to five 
-    structural breaks in the intercept and/or slope coefficients. Four different 
-    model specifications are supported: level shifts, level shifts with trend, 
-    regime shifts, and trend with regime shifts. The method is described in 
-    Maki (2012) "Tests for cointegration allowing for an unknown number of 
-    breaks" <doi:10.1016/j.econmod.2012.05.006>.
+Description: Implements the Maki (2012) <doi:10.1016/j.econmod.2012.04.022>
+    residual-based test for cointegration allowing for an unknown number of
+    structural breaks. Breaks are located by a sequential procedure and the
+    cointegrating residual is tested for a unit root with an augmented
+    Dickey-Fuller (ADF) regression; the test statistic is the minimum ADF
+    t-statistic over all candidate breaks. Four model specifications are
+    supported (level shift, level shift with trend, regime shift, and regime
+    shift with trend) and one to four regressors. The default engine reproduces
+    the original 'GAUSS' / 'tspdlib' implementation, with an optional break rule
+    following Maki (2012, Steps 2 and 4). The test runs for any feasible number
+    of breaks; beyond the five tabulated by Maki, critical values can be
+    simulated by his Monte-Carlo design. A two-panel diagnostic plot is provided
+    via 'ggplot2'.
 License: GPL-3
 Encoding: UTF-8
 Depends: R (>= 3.5.0)
-Imports:
-Suggests: testthat (>= 3.0.0), knitr, rmarkdown
+Imports: stats
+Suggests: ggplot2, testthat (>= 3.0.0), knitr, rmarkdown
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
 URL: https://github.com/merwanroudane/makicoint
 BugReports: https://github.com/merwanroudane/makicoint/issues
 NeedsCompilation: no
-Packaged: 2025-10-31 02:38:31 UTC; HP
-Author: Merwan Roudane [aut, cre] (Independent Researcher)
+Packaged: 2026-06-30 01:57:22 UTC; HP
+Author: Merwan Roudane [aut, cre, cph] (Independent Researcher)
 Maintainer: Merwan Roudane <merwanroudane920@gmail.com>
 Repository: CRAN
-Date/Publication: 2025-11-04 10:50:02 UTC
+Date/Publication: 2026-06-30 07:10:02 UTC

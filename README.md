@@ -1,144 +1,84 @@
-# makicoint: Maki Cointegration Test with Structural Breaks
+# makicoint: Maki Cointegration Test with Multiple Structural Breaks
 
 [![CRAN status](https://www.r-pkg.org/badges/version/makicoint)](https://CRAN.R-project.org/package=makicoint)
 
 ## Overview
 
-The `makicoint` package implements the Maki (2012) cointegration test that allows for an unknown number of structural breaks. This test is particularly useful for detecting long-run equilibrium relationships between non-stationary time series when structural changes occur over time.
+`makicoint` implements the Maki (2012) residual-based test for cointegration
+allowing for an **unknown number of structural breaks**. It extends the
+Gregory-Hansen (one break) and Hatemi-J (two breaks) tests to any feasible
+number of breaks, and is useful when the long-run relationship between
+non-stationary series may shift more than twice or is subject to regime changes.
 
-## Key Features
+## Key features
 
-- **Multiple Break Detection**: Tests for cointegration with up to 5 structural breaks
-- **Four Model Specifications**:
-  - Model 0: Level shifts
-  - Model 1: Level shifts with trend
-  - Model 2: Regime shifts (changes in both intercept and slope)
-  - Model 3: Trend and regime shifts
-- **Automatic Lag Selection**: Uses the t-sig criterion for optimal lag determination
-- **Critical Values**: Based on Maki (2012) Monte Carlo simulations
+- **Any feasible number of breaks** (not capped at five), bounded by the sample
+  size and the trimming parameter.
+- **Four model specifications**: level shift (`0`), level shift with trend (`1`),
+  regime shift (`2`), and regime shift with trend (`3`).
+- **Two engines** giving the same test statistic: the default reproduces the
+  original GAUSS/tspdlib implementation; `engine = "paper"` uses the Maki (2012,
+  Steps 2 and 4) break rule.
+- **Critical values** from Maki (2012) Table 1 (depending on the number of
+  regressors, breaks and model); **simulated** critical values for more than five
+  breaks via `simcv`.
+- **Diagnostic plot** (`ggplot2`): the series with its break-adjusted long-run
+  fit, and the cointegrating residual.
+- ADF lag rules: `tsig` (default), `fixed`, `zero`, `aic`, `bic`.
 
 ## Installation
 
-### From CRAN (once published)
-
 ```r
-install.packages("makicoint")
-```
-
-### Development Version from GitHub
-
-```r
-# install.packages("devtools")
-devtools::install_github("merwanroudane/makicoint")
+install.packages("makicoint")                       # CRAN
+# devtools::install_github("merwanroudane/makicoint")  # development
 ```
 
 ## Usage
 
-### Basic Example
-
 ```r
 library(makicoint)
 
-# Generate cointegrated series with a structural break
 set.seed(123)
 n <- 100
-e1 <- rnorm(n)
-e2 <- rnorm(n)
+x <- cumsum(rnorm(n))
+y <- 0.5 * x + cumsum(rnorm(n))
+y[51:100] <- y[51:100] + 2          # a level break at observation 50
 
-# Create I(1) variables
-x <- cumsum(e1)
-y <- 0.5 * x + cumsum(e2)
-
-# Add a structural break at observation 50
-y[51:100] <- y[51:100] + 2
-
-# Combine into matrix (dependent variable first)
-data <- cbind(y, x)
-
-# Run Maki test with 1 break, level shift model
-result <- coint_maki(data, m = 1, model = 0)
-print(result)
+res <- coint_maki(cbind(y, x), m = 1, model = 0)
+res
+plot(res)                           # requires ggplot2
 ```
 
-### Testing for Two Breaks
+Two breaks, regime-shift model, and the paper engine:
 
 ```r
-# Generate data with two breaks
-set.seed(456)
-n <- 150
-x2 <- cumsum(rnorm(n))
-y2 <- 0.6 * x2 + cumsum(rnorm(n))
-
-# Add two structural breaks
-y2[51:100] <- y2[51:100] + 1.5
-y2[101:150] <- y2[101:150] + 3
-
-data2 <- cbind(y2, x2)
-
-# Test with m=2
-result2 <- coint_maki(data2, m = 2, model = 0)
-print(result2)
+coint_maki(cbind(y, x), m = 2, model = 2)
+coint_maki(cbind(y, x), m = 2, model = 2, engine = "paper")
 ```
 
-### Model Specifications
+Beyond five breaks, with simulated critical values (heavy):
 
-- **model = 0**: Level shift only
-  - Tests for breaks in the intercept
-  
-- **model = 1**: Level shift with trend
-  - Includes a deterministic time trend
-  
-- **model = 2**: Regime shift
-  - Tests for breaks in both intercept and slope coefficients
-  
-- **model = 3**: Trend and regime shift
-  - Most general model with trend and coefficient changes
-
-## Mathematical Framework
-
-The test is based on the following cointegration regression:
-
-**Model 0 (Level Shift):**
+```r
+coint_maki(cbind(y, x), m = 7, simcv = 2000, simt = 500)
 ```
-y_t = μ + Σ(μ_i * D_i,t) + β'x_t + u_t
-```
-
-**Model 3 (Trend and Regime Shift):**
-```
-y_t = μ + Σ(μ_i * D_i,t) + βt + Σ(β_i * DT_i,t) + γ'x_t + Σ(γ_i' * D_i,t * x_t) + u_t
-```
-
-Where D_i,t are dummy variables indicating structural breaks.
-
-## Interpretation
-
-The test statistic is the minimum of the ADF tau statistics computed across all possible break point combinations. 
-
-- **Reject the null hypothesis**: Evidence of cointegration with structural breaks
-- **Fail to reject**: No evidence of cointegration
-
-Lower (more negative) test statistics provide stronger evidence against the null hypothesis of no cointegration.
 
 ## Functions
 
-- `coint_maki()`: Main function to perform the Maki cointegration test
-- `cv_coint_maki()`: Get critical values for the test
-- `print.maki_test()`: Print method for test results
+- `coint_maki()` — the test.
+- `cv_coint_maki(k, m, model)` — Maki (2012) Table 1 critical values.
+- `print()` / `plot()` methods for the result.
 
 ## Reference
 
-Maki, D. (2012). Tests for cointegration allowing for an unknown number of breaks. *Economic Modelling*, 29(5), 2011-2015. [https://doi.org/10.1016/j.econmod.2012.05.006](https://doi.org/10.1016/j.econmod.2012.05.006)
+Maki, D. (2012). Tests for cointegration allowing for an unknown number of
+breaks. *Economic Modelling*, 29, 2011-2015.
+[doi:10.1016/j.econmod.2012.04.022](https://doi.org/10.1016/j.econmod.2012.04.022)
 
 ## Author
 
-Dr. Merwan Roudane  
-Independent Researcher  
-Email: merwanroudane920@gmail.com
+Dr Merwan Roudane — Independent Researcher — merwanroudane920@gmail.com —
+[github.com/merwanroudane](https://github.com/merwanroudane)
 
 ## License
 
 GPL-3
-
-## Contributing
-
-Contributions, bug reports, and feature requests are welcome! Please feel free to open an issue or submit a pull request on GitHub.
